@@ -174,7 +174,7 @@ graph LR
     H --> I[Push to ECR]
     I --> J[Git Tagging]
     J --> K[GitOps Update]
-    L --> M[Report]
+    K --> M[Report]
 ```
 
 **Pipeline Stages:**
