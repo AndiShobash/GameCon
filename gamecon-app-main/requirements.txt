@@ -1,0 +1,12 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+psycopg2-binary
+requests
+prometheus_flask_exporter>=0.20.3
+pytest
+pytest-flask
+pytest-cov
+coverage[toml]
+bandit
+

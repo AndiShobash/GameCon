@@ -1,0 +1,116 @@
+prometheus:
+  ingress:
+    enabled: true
+    ingressClassName: "nginx"
+    hosts: ["gamecon-prom.freedynamicdns.net"] 
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt"
+    tls:
+      - hosts:
+          - gamecon-prom.freedynamicdns.net
+        secretName: prometheus-tls
+    https: true
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    # Enhanced retention for better historical data
+    retention: "30d"
+    # Resource limits for better performance
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+    additionalScrapeConfigs:
+      - job_name: "gamecon-endpoints"
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - my-app 
+        relabel_configs:
+          - source_labels:
+              [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels:
+              [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (http?)
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels:
+              [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - source_labels: [__meta_kubernetes_service_name]
+            regex: prometheus-server
+            action: drop
+
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+      - job_name: "ingress-endpoints"
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - ingress
+        relabel_configs:
+          - source_labels:
+              [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels:
+              [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (http?)
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels:
+              [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - source_labels: [__meta_kubernetes_service_name]
+            regex: prometheus-server
+            action: drop
+
+grafana:
+  ingress:
+    enabled: true
+    ingressClassName: "nginx"
+    hosts: ["gamecon-grafana.freedynamicdns.net"]  
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt"
+    tls:
+      - hosts:
+          - gamecon-grafana.freedynamicdns.net  
+        secretName: grafana-tls
+    https: true
+  
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'custom'
+        orgId: 1
+        folder: 'Custom Dashboards'
+        type: file
+        disableDeletion: false
+        editable: true
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/custom

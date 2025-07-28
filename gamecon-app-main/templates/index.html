@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game List</title>
+    <link rel="stylesheet" href="{{ static_url('style.css') }}">
+    <script src="{{ static_url('scripts.js') }}" defer></script>
+</head>
+<body>
+    <h1>All Games</h1>
+    <a href="/games/new">Add New Game</a>
+    <ul class="game-list">
+        {% for game in games %}
+            <li class="game-item">
+                <span class="game-number">{{ game.id }})</span>
+                <span class="game-title">
+                    <a href="/games/{{ game.id }}">{{ game.title }}</a>
+                </span>
+                <span class="game-info">
+                    ({{ game.genre }} - {{ game.platform }})
+                </span>
+            </li>
+        {% endfor %}
+        </ul>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{{- if .Values.postgresql.namespaceOverride }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.postgresql.namespaceOverride }}
+  labels:
+    name: {{ .Values.postgresql.namespaceOverride }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+{{- end }}

@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gamecon.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+    spec:
+      securityContext:
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsGroup }}
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+      containers:
+      - name: {{ .Values.name }}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        # Database secrets from External Secrets
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: gamecon-secret  # Created by External Secrets Operator
+              key: DATABASE_URL
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: gamecon-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gamecon-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_HOST
+          valueFrom:
+            secretKeyRef:
+              name: gamecon-secret
+              key: POSTGRES_HOST
+        - name: POSTGRES_PORT
+          valueFrom:
+            secretKeyRef:
+              name: gamecon-secret
+              key: POSTGRES_PORT
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: gamecon-secret
+              key: POSTGRES_DB
+        # Non-sensitive config from ConfigMap
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.config.name }}
+              key: LOG_LEVEL
+        - name: FLASK_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.config.name }}
+              key: FLASK_ENV
+        - name: FLASK_APP
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.config.name }}
+              key: FLASK_APP
+        - name: CDN_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.config.name }}
+              key: CDN_DOMAIN
+        ports:
+        - containerPort: {{ .Values.port }}
+        resources:
+          limits:
+            memory: {{ .Values.resources.limits.memory }}
+            cpu: {{ .Values.resources.limits.cpu }}
+          requests:
+            memory: {{ .Values.resources.requests.memory }}
+            cpu: {{ .Values.resources.requests.cpu }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.livenessProbe.path }}
+            port: {{ .Values.port }}
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.readinessProbe.path }}
+            port: {{ .Values.port }}
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}

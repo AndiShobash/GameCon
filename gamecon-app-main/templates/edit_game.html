@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Game</title>
+    <link rel="stylesheet" href="{{ static_url('style.css') }}">
+    <script src="{{ static_url('scripts.js') }}" defer></script>
+</head>
+<body>
+    <h1>Edit Game</h1>
+    
+    <form method="POST">
+        Title: <input type="text" name="title" value="{{ game.title }}" required><br>
+        Genre: <input type="text" name="genre" value="{{ game.genre }}" required><br>
+        Platform: <input type="text" name="platform" value="{{ game.platform }}" required><br>
+        New Image URL: <input type="url" name="image_url" placeholder="https://example.com/image.jpg" onchange="previewImage(this.value)"><br>
+        <small style="color: #666; margin-left: 0; margin-bottom: 10px; display: block;">Enter a new image URL to replace the current image (optional)</small>
+        
+        {% if game.image_data %}
+        <div style="margin-top: 10px; margin-bottom: 10px;">
+            <strong>Current Image:</strong><br>
+            <img src="data:{{ game.image_mime }};base64,{{ game.image_data | b64encode }}" 
+                 style="max-width: 200px; max-height: 200px; margin-top: 5px;" alt="Current game image">
+        </div>
+        {% endif %}
+        
+        <img id="image_preview" style="display: none; max-width: 200px; max-height: 200px; margin-top: 10px;" alt="New image preview">
+        
+        <button type="submit">Update</button>
+    </form>
+    <a href="/games/{{ game.id }}">Back to game details</a>
+
+    <script>
+        function previewImage(url) {
+            const preview = document.getElementById('image_preview');
+            if (url) {
+                preview.src = url;
+                preview.style.display = 'block';
+                preview.onerror = function() {
+                    this.style.display = 'none';
+                    alert('Could not load image from URL');
+                };
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

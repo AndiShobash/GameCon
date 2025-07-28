@@ -1,0 +1,63 @@
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    ports:
+      - "80:80"
+    depends_on:
+        flask:
+          condition: service_healthy
+        postgres_db:
+          condition: service_healthy
+    restart: on-failure
+    networks:
+      - flask
+    mem_limit: 256m
+    cpus: 0.5
+
+  postgres_db:
+    image: postgres:16
+    container_name: postgres_db
+    restart: on-failure
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1g
+    cpus: 1.0
+
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gamecon_app
+    env_file:
+      - .env
+    restart: on-failure
+    networks:
+      - flask
+      - db
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 5000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    cpus: 1.0
+
+volumes:
+  pgdata:
+
+networks:
+  flask:
+    driver: bridge
+  db:
+    driver: bridge

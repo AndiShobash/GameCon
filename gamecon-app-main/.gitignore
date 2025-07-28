@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.pip-cache/
+
+# Environment variables
+# .env
+# .env.*
+
+# Others
+*.sqlite3
+*.db
+
+streamlit_app.py
+notes.txt
+test.sh
+.env.jenkins 
+.env

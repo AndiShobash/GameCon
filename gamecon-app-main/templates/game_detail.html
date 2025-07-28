@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ game.title }}</title>
+    <link rel="stylesheet" href="{{ static_url('style.css') }}">
+    <script src="{{ static_url('scripts.js') }}" defer></script>
+</head>
+<body>
+    <h1>{{ game.title }}</h1>
+    <p>Genre: {{ game.genre }}</p>
+    <p>Platform: {{ game.platform }}</p>
+
+    {% if game.image_data %}
+        <img src="data:{{ game.image_mime }};base64,{{ game.image_data | b64encode }}" alt="{{ game.title }}" width="200">
+    {% endif %}
+
+    <br>
+    <div class="button-group">
+        <div class="button-item">
+            <a href="/games/{{ game.id }}/edit" class="btn btn-edit">Edit</a>
+        </div>
+        <div class="button-item">
+            <form method="POST" action="/games/{{ game.id }}/delete" onsubmit="return confirmDelete();" style="margin: 0;">
+                <button type="submit" class="btn btn-delete">Delete</button>
+            </form>
+        </div>
+    </div>
+    <br>
+    <a href="/">Back to list</a>
+</body>
+</html>

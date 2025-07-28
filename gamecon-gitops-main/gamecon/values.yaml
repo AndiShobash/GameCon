@@ -1,0 +1,107 @@
+
+# Default values for gamecon.
+replicaCount: 3
+name: gamecon
+namespace: my-app
+port: 5000
+
+image:
+  repository: 793786247026.dkr.ecr.ap-south-1.amazonaws.com/andi/gamecon
+  tag: 1.0.29
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    memory: "256Mi"
+    cpu: "500m"
+  requests:
+    memory: "128Mi"
+    cpu: "32m"
+
+livenessProbe:
+  path: /health
+  initialDelaySeconds: 60
+  periodSeconds: 10
+
+readinessProbe:
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 5
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+
+externalSecret:
+  enabled: true
+  name: gamecon-secret
+
+config:
+  name: gamecon-config
+  LOG_LEVEL: INFO
+  FLASK_ENV: production
+  FLASK_APP: app.py
+  CDN_DOMAIN: "d3tk5py90sb6u6.cloudfront.net"
+
+# PostgreSQL configuration
+# This section assumes you have an existing secret in AWS Secrets Manager
+# with the necessary credentials for PostgreSQL.
+postgresql:
+  namespaceOverride: "my-db"
+  architecture: replication
+  auth:
+    enablePostgresUser: true
+    existingSecret: gamecon-secret
+    secretKeys:
+      adminPasswordKey: POSTGRES_PASSWORD
+      userPasswordKey: POSTGRES_PASSWORD
+      replicationPasswordKey: REPLICATION_PASSWORD
+      
+    username: flaskuser
+    database: mydb
+
+  # logging configuration
+  primary:
+    configuration: |
+      listen_addresses = '*'
+      port = 5432
+      max_connections = 100
+
+      # Enable verbose logging for all statements
+      log_statement = 'all'
+      log_connections = on
+      log_disconnections = on
+      log_min_duration_statement = 0
+      log_line_prefix = '%t [%p] %u@%d '
+      log_min_messages = info
+      log_checkpoints = on
+      log_lock_waits = on
+      log_temp_files = 0
+      
+  # Also configure read replicas with the same logging
+  readReplicas:
+    replicaCount: 2
+    extendedConfiguration: |
+      listen_addresses = '*'
+      log_statement = 'all'
+      log_connections = on
+      log_disconnections = on
+      log_min_duration_statement = 0
+      log_line_prefix = '%t [%p] %u@%d '
+      log_min_messages = info
+      log_checkpoints = on
+      log_lock_waits = on
+      log_temp_files = 0
+# Ingress configuration
+ingress:
+  enabled: true
+  host: gamecon.freedynamicdns.net
+  issuer: letsencrypt-prod
+  backendService: gamecon-svc
+  backendPort: 5000
+# Cert-manager configuration
+certManager:
+    namespace: cert-manager 
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: andishubash@gmail.com

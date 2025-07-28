@@ -1,0 +1,325 @@
+pipeline {
+    agent any
+    options{
+        timeout(time: 10, unit: "MINUTES")
+        disableConcurrentBuilds()
+        skipDefaultCheckout()
+        timestamps()
+        gitLabConnection('gitlab_test')
+        gitlabBuilds(builds: ["Checkout Repository","Build", "Unit Test", "Code Coverage", "SonarQube Analysis", "Security Testing","E2E Test", "Versioning","Push To ECR", "Tag", "GitOps Tag"])
+        gitlabCommitStatus(name: 'Complete CI')
+    }
+
+    triggers {   
+    gitlab(triggerOnPush: true)
+    } 
+
+    
+    stages {   
+
+        stage('Checkout Repository') {
+            steps {
+                gitlabCommitStatus("Checkout Repository") { 
+                    script {
+                        checkout scm
+                        
+                        env.GIT_COMMIT_INFO = sh(script: "git log -1 --pretty=format:'%an <%ae>%nCommit: %h%nMessage: %s'", returnStdout: true).trim()
+                        env.GIT_COMMIT_EMAIL = sh(script: "git log -1 --pretty=format:'%ae'", returnStdout: true).trim()
+                        env.GIT_COMMIT_MESSAGE = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
+                        echo "the email is: ${env.GIT_COMMIT_EMAIL}"
+                        echo "the commit message is: ${env.GIT_COMMIT_MESSAGE}"
+            }
+
+                }
+            }
+        }
+
+        stage('Setup environment') {
+            steps {
+                echo 'env setup stage started'
+                configFileProvider([configFile(fileId: 'dfdfe95f-5fdf-4356-8af3-420ce51cd514', variable: 'ENV_FILE')]) {
+                    script {
+                        def props = readProperties file: "${env.ENV_FILE}"
+                        env.REPO_ECR_NAME = props['REPO_ECR_NAME']
+                        env.REGION = props['REGION']
+                        env.IMAGE_NAME = props['IMAGE_NAME']
+                        env.CONTAINER_NAME = props['CONTAINER_NAME']
+                        env.GITLAB_REPO = props['GITLAB_REPO']
+                        env.GITOPS_REPO = props['GITOPS_REPO']
+                        env.MAJORVERSION = props['MAJORVERSION']
+                        env.GIT_USER = props['GIT_USER']
+                        env.GIT_EMAIL = props['GIT_EMAIL']
+                        env.SONAR_HOST_URL = props['SONAR_HOST_URL']
+                        env.SONAR_TOKEN = props['SONAR_TOKEN']
+                        env.POSTGRES_USER = props['POSTGRES_USER']
+                        env.POSTGRES_PASSWORD = props['POSTGRES_PASSWORD']
+                        env.POSTGRES_DB = props['POSTGRES_DB']
+                        env.DATABASE_URL = props['DATABASE_URL']
+                        env.POSTGRES_HOST = props['POSTGRES_HOST']
+                        env.POSTGRES_PORT = props['POSTGRES_PORT']
+                        writeFile file: '.env', text: """
+POSTGRES_USER=${env.POSTGRES_USER}
+POSTGRES_PASSWORD=${env.POSTGRES_PASSWORD}
+POSTGRES_DB=${env.POSTGRES_DB}
+DATABASE_URL=${env.DATABASE_URL}
+POSTGRES_HOST=${env.POSTGRES_HOST}
+POSTGRES_PORT=${env.POSTGRES_PORT}
+"""
+                    }
+                }
+            }
+        }
+
+        stage("Unit Test") {
+            steps {
+                gitlabCommitStatus("Unit Test") {
+                    script {
+                        sh """
+                            chmod +x scripts/code-coverage.sh
+                            ./scripts/code-coverage.sh
+                            """
+                    }
+                }
+            }
+        }
+
+        stage("SonarQube Analysis") {
+            steps {
+                gitlabCommitStatus("SonarQube Analysis") {
+                    script {
+                        sh """
+                            chmod +x scripts/sonarqube-analysis.sh
+                            ./scripts/sonarqube-analysis.sh
+                        """
+                    }
+                }
+            }
+        }
+
+        stage("Security Testing") {
+            steps {
+                gitlabCommitStatus("Security Testing") {
+                    script {
+                        sh '''
+                            chmod +x scripts/security-testing.sh
+                            ./scripts/security-testing.sh
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage("Build & Package") {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'develop'
+                }
+            }
+            steps {
+                gitlabCommitStatus("Build"){
+                    sh"""
+                        echo "Building all services with docker-compose"
+                        docker compose build
+                        docker compose up -d
+                    """
+                }   
+            } 
+        }
+
+
+
+        stage("End To End Tests") {
+            steps {
+                gitlabCommitStatus("E2E Test") {
+                    script {
+                        dir('tests') {
+                            sh """
+                            chmod +x e2e_tests.sh
+                            ./e2e_tests.sh
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Versioning & Push To ECR') {
+            when {
+                anyOf {
+                    branch 'main'
+                }
+            }
+            steps {
+                gitlabCommitStatus("Versioning") {
+                    script {
+                        withCredentials([usernamePassword(credentialsId: 'gitlab-token-access', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+                            sh "git fetch --tags https://${GIT_USERNAME}:${GIT_PASSWORD}@gitlab.com/andishubash/gamecon-app.git"
+                        }
+                        String tagsOutput = sh(script: 'git tag', returnStdout: true).trim()
+                        env.NEW_TAG = performVersioning(tagsOutput, env.MAJORVERSION)
+                        echo "Highest tag in major ${env.MAJORVERSION}: ${env.NEW_TAG}"
+                    }
+                }
+                gitlabCommitStatus("Push To ECR") {
+                    script{
+                        sh "aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REPO_ECR_NAME"
+                        sh "docker tag $IMAGE_NAME:latest $REPO_ECR_NAME/$GIT_USER/gamecon:$NEW_TAG"
+                        sh "docker push $REPO_ECR_NAME/$GIT_USER/gamecon:$NEW_TAG"
+                    }
+                }
+            }
+        }
+
+
+
+        stage("Tag"){
+            when {
+                anyOf {
+                    branch 'main'
+                }
+            }
+            steps {
+                gitlabCommitStatus("Tag") {
+                    withCredentials([usernamePassword(credentialsId: 'gitlab-token-access', usernameVariable: 'GITLAB_USER', passwordVariable: 'GITLAB_PAT')]) {
+                        sh """
+                            git clean -f
+                            git config user.name ${GIT_USER}
+                            git config user.email ${GIT_EMAIL}
+                            git remote set-url origin https://${GITLAB_USER}:${GITLAB_PAT}@${GITLAB_REPO}
+                            git tag -a $NEW_TAG -m "Release version $NEW_TAG"
+                            git push origin $NEW_TAG
+                        """
+                    }
+                }
+            }
+
+        }
+        stage("GitOps Tag"){
+            when {
+                anyOf {
+                    branch 'main'
+                }
+            } 
+            steps {
+                gitlabCommitStatus("GitOps Tag") {
+                    withCredentials([usernamePassword(credentialsId: 'gitlab-token-access', usernameVariable: 'GITLAB_USER', passwordVariable: 'GITLAB_PAT')]) {
+                        script {
+                            // Clone the GitOps repository
+                            sh "git clone https://${GITLAB_USER}:${GITLAB_PAT}@${GITOPS_REPO} gitops-repo"
+                            
+                            // Work inside the cloned directory
+                            dir('gitops-repo/gamecon') {
+                                sh """
+                                    # Update the image tag in values.yaml
+                                    sed -i 's/tag: .*/tag: ${NEW_TAG}/' values.yaml
+                                    
+                                    # Verify the change
+                                    grep "tag:" values.yaml
+                                    
+                                    # Configure git and commit changes
+                                    git config user.name ${GIT_USER}
+                                    git config user.email ${GIT_EMAIL}
+                                    git add values.yaml
+                                    git commit -m "Update image tag to ${NEW_TAG}"
+                                    git push origin main
+                                """
+                            }
+                            
+                            // Clean up
+                            sh "rm -rf gitops-repo"
+                        }
+                    }
+                }
+            }
+
+        }
+
+
+    }
+                 
+
+    post {
+
+        success {
+            script {
+                emailext(
+                    subject: "GameCon Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """\
+                        Build Success!
+
+                        Job: ${env.JOB_NAME}
+                        Build: #${env.BUILD_NUMBER}
+                        Branch: ${env.BRANCH_NAME}
+                        URL: ${env.BUILD_URL}
+                        Console: ${env.BUILD_URL}console
+                        SonarQube: ${env.SONAR_HOST_URL}/dashboard?id=gamecon-app
+
+                        ${env.GIT_COMMIT_INFO}
+                        """,
+                        to: "${env.GIT_COMMIT_EMAIL}"
+                    )
+            }  
+        }
+        failure { 
+            script {
+                emailext(
+                    subject: "GameCon Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """\
+                        Build failed! 
+
+                        Job: ${env.JOB_NAME}
+                        Build: #${env.BUILD_NUMBER}
+                        Branch: ${env.BRANCH_NAME}
+                        URL: ${env.BUILD_URL}
+                        Console: ${env.BUILD_URL}console
+
+                        ${env.GIT_COMMIT_INFO}
+                        """,
+                        to: "${env.GIT_COMMIT_EMAIL}"
+                    )
+            } 
+        }
+        always{
+            sh 'docker compose down -v'
+            cleanWs() 
+        }
+    }
+}
+
+ def performVersioning(tagsOutput, String targetMajorVersion) {
+    def tagsArray = tagsOutput ? tagsOutput.split('\n') : []
+    String latestTag = ''
+    int maxMinor = -1
+    int maxPatch = -1
+
+    tagsArray.each { tag ->
+        // Assume semantic versioning like '1.2.3'
+        def parts = tag.tokenize('.')
+        if (parts.size() == 3) {
+            int major = parts[0].toInteger()
+            int minor = parts[1].toInteger()
+            int patch = parts[2].toInteger()
+
+            // Only consider tags matching the target major version
+            if (major == targetMajorVersion.toInteger()) {
+                if (
+                    minor > maxMinor || 
+                    (minor == maxMinor && patch > maxPatch)
+                ) {
+                    maxMinor = minor
+                    maxPatch = patch
+                    latestTag = tag
+                }
+            }
+        }
+    }
+        if(latestTag) {
+            def parts = latestTag.tokenize('.') 
+            int nextpatch = parts[2].toInteger() + 1 
+            return "${parts[0]}.${parts[1]}.${nextpatch}"
+        } else {
+            return "${targetMajorVersion}.0.0"
+        }
+}
+

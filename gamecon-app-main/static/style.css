@@ -1,0 +1,154 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    background-color: #a1afcc;
+}
+
+h1, h2 {
+    color: #333;
+}
+
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+form input, form button {
+    margin: 8px 0;
+    padding: 8px;
+    width: 300px;
+    display: block;
+}
+
+button, .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 8px 0;
+    font-size: 16px;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    color: white;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
+.button-group .button-item {
+    flex: 0 0 auto; /* no forced width, buttons size to content */
+}
+
+.button-group .button-item .btn {
+    padding: 15px 15px; /* small padding: top/bottom 5px, left/right 10px */
+    font-size: 15px;   /* smaller text */
+    height: auto;      /* let height adjust naturally */
+    width: auto;       /* let width fit content */
+}
+
+.btn-edit {
+    background-color: #007bff; /* blue */
+}
+
+.btn-edit:hover {
+    background-color: #0069d9;
+}
+
+.btn-delete {
+    background-color: #dc3545; /* red */
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+}
+
+img {
+    margin-top: 10px;
+    border: 1px solid #ccc;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+ul li {
+    margin: 8px 0;
+    background: #ebdbdb;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Form submit buttons - green by default, but exclude delete buttons */
+form button[type="submit"]:not(.btn-delete),
+form input[type="submit"]:not(.btn-delete) {
+    background-color: #28a745; /* green */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+form button[type="submit"]:not(.btn-delete):hover,
+form input[type="submit"]:not(.btn-delete):hover {
+    background-color: #218838; /* darker green on hover */
+}
+
+/* Delete buttons - red styling with high specificity */
+form button[type="submit"].btn-delete,
+button.btn-delete,
+.btn.btn-delete {
+    background-color: #dc3545 !important; /* red */
+    color: white !important;
+    border: none !important;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+form button[type="submit"].btn-delete:hover,
+button.btn-delete:hover,
+.btn.btn-delete:hover {
+    background-color: #c82333 !important; /* darker red on hover */
+}
+
+/* Generic button hover - but exclude buttons with specific classes */
+button:hover:not(.btn-edit):not(.btn-delete) {
+    background-color: #218838;
+}
+
+.game-list {
+    list-style: none;
+    padding: 0;
+}
+
+.game-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f8d7da;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.game-number, .game-title {
+    flex: 1;
+}
+
+.game-info {
+    flex: 0 0 250px;  /* fixed width area on the right */
+    text-align: right;
+    font-style: italic;
+}

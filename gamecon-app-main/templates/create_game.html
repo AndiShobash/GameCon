@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add New Game</title>
+    <link rel="stylesheet" href="{{ static_url('style.css') }}">
+    <script src="{{ static_url('scripts.js') }}" defer></script>
+</head>
+<body>
+    <h1>Add New Game</h1>
+    
+    {% if error %}
+    <div style="color: red; background-color: #ffebee; padding: 10px; margin-bottom: 15px; border-radius: 4px;">
+        {{ error }}
+    </div>
+    {% endif %}
+    
+    <form method="POST">
+        Title: <input type="text" name="title" required><br>
+        Genre: <input type="text" name="genre" required><br>
+        Platform: <input type="text" name="platform" required><br>
+        Image URL: <input type="url" name="image_url" placeholder="https://example.com/image.jpg" onchange="previewImage(this.value)"><br>
+        <small style="color: #666; margin-left: 0; margin-bottom: 10px; display: block;">Enter a direct link to an image (jpg, png, gif)</small>
+        
+        <img id="image_preview" style="display: none; max-width: 200px; max-height: 200px; margin-top: 10px;" alt="Image preview">
+        
+        <button type="submit">Create</button>
+    </form>
+    <a href="/">Back to list</a>
+
+    <script>
+        function previewImage(url) {
+            const preview = document.getElementById('image_preview');
+            if (url) {
+                preview.src = url;
+                preview.style.display = 'block';
+                preview.onerror = function() {
+                    this.style.display = 'none';
+                    alert('Could not load image from URL');
+                };
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

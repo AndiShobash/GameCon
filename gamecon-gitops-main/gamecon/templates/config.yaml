@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.config.name | quote }}
+  namespace: {{ .Values.namespace }}
+data:
+  LOG_LEVEL: {{ .Values.config.LOG_LEVEL | quote }}
+  FLASK_ENV: {{ .Values.config.FLASK_ENV | quote }}
+  FLASK_APP: {{ .Values.config.FLASK_APP | quote }}
+  CDN_DOMAIN: {{ .Values.config.CDN_DOMAIN | quote }}
